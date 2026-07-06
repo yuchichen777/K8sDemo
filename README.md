@@ -1,46 +1,221 @@
 # K8sDemo
 
-這是一個用來練習 Kubernetes 的小型微服務範例：
+A Kubernetes microservices demo built with **.NET 10**, **RabbitMQ**, **React**, **Docker**, and **Kubernetes**.
 
-- React UI
-- WMS API
-- SAP API
-- SAP Consumer
-- RabbitMQ
+This project simulates a simplified WMS (Warehouse Management System) event flow using an event-driven architecture.
 
-目前專案適合練習服務部署、Ingress 路由、訊息佇列、健康檢查、滾動更新和故障排查。
+---
 
-## 快速部署
+## Architecture
 
-在專案根目錄執行：
-
-```powershell
-.\Deploy\deploy-all.ps1 -Wms -SapApi -Consumer -React
+```
+React UI
+    │
+    ▼
+WMS API
+    │ Publish Event
+    ▼
+RabbitMQ Exchange
+    │
+    ▼
+SAP Consumer
+    │ HTTP
+    ▼
+SAP API
 ```
 
-腳本會建立新的 image tag、載入 minikube、套用 YAML、更新 Deployment image，並等待 rollout 完成。
+---
 
-## 建議練習順序
+## Features
 
-1. 觀察 Pod 與 Service
-2. 走一次完整事件流程
-3. 故意讓服務失敗，練習查看 logs 與 events
-4. 調整 replicas，觀察 Service 如何分流
-5. 修改程式後重新部署，觀察 rolling update
-6. 把 RabbitMQ 設定移到 ConfigMap 和 Secret
-7. 加上 HPA，練習自動擴縮
+- ✅ React Dashboard
+- ✅ RabbitMQ Message Queue
+- ✅ Event Driven Architecture
+- ✅ Retry Mechanism
+- ✅ Dead Letter Queue (DLQ)
+- ✅ Manual Requeue
+- ✅ Dashboard Statistics
+- ✅ Event Trend Chart
+- ✅ Health Check
+- ✅ Kubernetes Deployment
+- ✅ Rolling Update
+- ✅ Automated Deploy Script
 
-更完整的學習路線在 [K8S_LEARNING.md](K8S_LEARNING.md)。
+---
 
-## RabbitMQ 設定
+## Project Structure
 
-RabbitMQ 連線資訊放在 Kubernetes 設定檔：
+```
+Backend
+│
+├── K8sDemo.WmsApi
+├── K8sDemo.SapApi
+├── K8sDemo.SapConsumer
+└── K8sDemo.Shared
 
-- `Deploy/rabbitmq-config.yaml` 的 ConfigMap：RabbitMQ host 與 management port
-- `Deploy/rabbitmq-config.yaml` 的 Secret：RabbitMQ username 與 password
+Frontend
+└── k8sdemo-react-ui
 
-套用設定：
+Deploy
+├── deploy-all.ps1
+├── rabbitmq-config.yaml
+├── wms-api.yaml
+├── sap-api.yaml
+├── sap-consumer.yaml
+└── react-ui.yaml
+```
+
+---
+
+## Event Flow
+
+```
+Material Picked
+
+        │
+        ▼
+
+   RabbitMQ
+
+        │
+        ▼
+
+ SAP Consumer
+
+        │
+        ├───────────────┐
+        │               │
+        ▼               ▼
+
+    Success          Retry
+
+                        │
+
+              Retry < 3 ?
+
+                │      │
+
+              Yes      No
+
+                │      │
+
+                ▼      ▼
+
+             Publish   DLQ
+
+                       │
+
+                 Manual Requeue
+```
+
+---
+
+## Quick Start
+
+Start Minikube
+
+```powershell
+minikube start
+```
+
+Deploy all services
+
+```powershell
+.\Deploy\deploy-all.ps1 `
+    -Wms `
+    -SapApi `
+    -Consumer `
+    -React
+```
+
+The script will:
+
+- Build Docker images
+- Load images into Minikube
+- Apply Kubernetes YAML
+- Update Deployment image
+- Wait for rollout
+- Open Dashboard
+
+---
+
+## Deployment Components
+
+| Component | Description |
+|------------|-------------|
+| React UI | Dashboard |
+| WMS API | Publish Material Event |
+| RabbitMQ | Message Broker |
+| SAP Consumer | Consume & Retry |
+| SAP API | Simulated SAP Service |
+
+---
+
+## Learning Objectives
+
+This project is designed for practicing:
+
+- Kubernetes Deployment
+- Service
+- Ingress
+- ConfigMap
+- Secret
+- RabbitMQ
+- Retry Pattern
+- Dead Letter Queue
+- Rolling Update
+- Health Check
+- Docker Image Management
+- Troubleshooting
+
+More learning notes can be found in **K8S_LEARNING.md**.
+
+---
+
+## RabbitMQ Configuration
+
+RabbitMQ configuration is managed by Kubernetes.
+
+ConfigMap
+
+```
+Deploy/rabbitmq-config.yaml
+```
+
+Secret
+
+```
+Deploy/rabbitmq-config.yaml
+```
+
+Apply configuration
 
 ```powershell
 kubectl apply -f .\Deploy\rabbitmq-config.yaml
 ```
+
+---
+
+## Roadmap
+
+### v1
+
+- ✅ RabbitMQ
+- ✅ Retry
+- ✅ DLQ
+- ✅ Requeue
+- ✅ Dashboard
+- ✅ Statistics
+- ✅ Kubernetes Deployment
+
+### v2
+
+- ⏳ Prometheus
+- ⏳ Grafana
+- ⏳ OpenTelemetry
+
+### v3
+
+- ⏳ GitHub Actions
+- ⏳ Argo CD
+- ⏳ CI/CD Pipeline
