@@ -1,0 +1,19 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["Backend/K8sDemo.SapConsumer/K8sDemo.SapConsumer.csproj", "Backend/K8sDemo.SapConsumer/"]
+COPY ["Backend/K8sDemo.Shared/K8sDemo.Shared.csproj", "Backend/K8sDemo.Shared/"]
+
+RUN dotnet restore "Backend/K8sDemo.SapConsumer/K8sDemo.SapConsumer.csproj"
+
+COPY . .
+
+RUN dotnet publish "Backend/K8sDemo.SapConsumer/K8sDemo.SapConsumer.csproj" -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+
+WORKDIR /app
+
+COPY --from=build /app/publish .
+
+ENTRYPOINT ["dotnet", "K8sDemo.SapConsumer.dll"]

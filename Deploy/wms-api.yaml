@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wms-api
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: wms-api
+
+  template:
+    metadata:
+      labels:
+        app: wms-api
+
+    spec:
+      containers:
+      - name: wms-api
+
+        image: wms-api:v1
+
+        imagePullPolicy: Never
+
+        ports:
+        - containerPort: 8080
+
+        env:
+        - name: ASPNETCORE_URLS
+          value: http://+:8080
+        - name: RabbitMQ__Host
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__Host
+        - name: RabbitMQ__ManagementPort
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__ManagementPort
+        - name: RabbitMQ__Username
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: RabbitMQ__Username
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: RabbitMQ__Password
+
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20
+
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wms-api
+
+spec:
+  selector:
+    app: wms-api
+
+  ports:
+  - port: 8080
+    targetPort: 8080

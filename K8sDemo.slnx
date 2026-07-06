@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Backend/K8sDemo.SapApi/K8sDemo.SapApi.csproj" />
+  <Project Path="Backend/K8sDemo.SapConsumer/K8sDemo.SapConsumer.csproj" />
+  <Project Path="Backend/K8sDemo.Shared/K8sDemo.Shared.csproj" />
+  <Project Path="Backend/K8sDemo.WmsApi/K8sDemo.WmsApi.csproj" />
+</Solution>

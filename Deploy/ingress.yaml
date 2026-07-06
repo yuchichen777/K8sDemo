@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k8sdemo-ingress
+
+spec:
+  ingressClassName: nginx
+
+  rules:
+  - http:
+      paths:
+
+      - path: /api/wms
+        pathType: Prefix
+        backend:
+          service:
+            name: wms-api
+            port:
+              number: 8080
+
+      - path: /api/dashboard
+        pathType: Prefix
+        backend:
+          service:
+            name: wms-api
+            port:
+              number: 8080
+
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: react-ui
+            port:
+              number: 80
