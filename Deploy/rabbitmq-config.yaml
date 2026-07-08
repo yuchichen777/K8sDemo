@@ -5,6 +5,13 @@ metadata:
 data:
   RabbitMQ__Host: rabbitmq
   RabbitMQ__ManagementPort: "15672"
+  RabbitMQ__ExchangeName: sap-events
+  RabbitMQ__MaterialQueueName: sap-material
+  RabbitMQ__MaterialDlqQueueName: sap-material-dlq
+  RabbitMQ__MaterialRoutingKey: material
+  SapApi__BaseUrl: http://sap-api:8080
+  SapConsumer__BaseUrl: http://sap-consumer:8080
+  Retry__MaxRetryCount: "3"
 ---
 apiVersion: v1
 kind: Secret

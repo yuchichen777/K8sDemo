@@ -32,6 +32,36 @@ spec:
             configMapKeyRef:
               name: rabbitmq-config
               key: RabbitMQ__Host
+        - name: RabbitMQ__ExchangeName
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__ExchangeName
+        - name: RabbitMQ__MaterialQueueName
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__MaterialQueueName
+        - name: RabbitMQ__MaterialDlqQueueName
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__MaterialDlqQueueName
+        - name: RabbitMQ__MaterialRoutingKey
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__MaterialRoutingKey
+        - name: SapApi__BaseUrl
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: SapApi__BaseUrl
+        - name: Retry__MaxRetryCount
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: Retry__MaxRetryCount
         - name: RabbitMQ__Username
           valueFrom:
             secretKeyRef:
