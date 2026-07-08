@@ -1,8 +1,9 @@
-﻿using K8sDemo.WmsApi.Services;
-
-using K8sDemo.WmsApi.Options;
-
 using K8sDemo.Shared.Options;
+using K8sDemo.WmsApi.HealthChecks;
+using K8sDemo.WmsApi.Options;
+using K8sDemo.WmsApi.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +19,15 @@ builder.Services.Configure<SapApiOptions>(
     builder.Configuration.GetSection("SapApi"));
 builder.Services.Configure<SapConsumerOptions>(
     builder.Configuration.GetSection("SapConsumer"));
+
+builder.Services.AddHealthChecks()
+    .AddCheck(
+        "self",
+        () => HealthCheckResult.Healthy(),
+        tags: ["live", "ready"])
+    .AddCheck<RabbitMqHealthCheck>(
+        "rabbitmq",
+        tags: ["ready"]);
 
 builder.Services.AddHttpClient();
 
@@ -36,6 +46,18 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapControllers();
-app.MapGet("/healthz", () => Results.Ok(new { status = "Healthy 111" }));
+app.MapHealthChecks(
+    "/health/live",
+    new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("live")
+    });
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready")
+    });
+app.MapGet("/healthz", () => Results.Ok(new { status = "Healthy" }));
 
 app.Run();
