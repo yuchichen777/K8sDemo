@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
+COPY ["Directory.Packages.props", "."]
 COPY ["Backend/K8sDemo.WmsApi/K8sDemo.WmsApi.csproj", "Backend/K8sDemo.WmsApi/"]
 COPY ["Backend/K8sDemo.Shared/K8sDemo.Shared.csproj", "Backend/K8sDemo.Shared/"]
 

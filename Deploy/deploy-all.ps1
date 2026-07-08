@@ -29,6 +29,18 @@ $root = Split-Path -Parent $PSScriptRoot
 
 Set-Location $root
 
+function Assert-LastCommandSucceeded
+{
+    param(
+        [string]$Action
+    )
+
+    if ($LASTEXITCODE -ne 0)
+    {
+        throw "$Action failed with exit code $LASTEXITCODE"
+    }
+}
+
 function Show-DockerTroubleshooting
 {
     Write-Host ""
@@ -152,18 +164,23 @@ if ($Wms)
     docker build `
         -t wms-api:$Version `
         -f .\Backend\K8sDemo.WmsApi\dockerfile .
+    Assert-LastCommandSucceeded "Build WMS API image"
 
     Write-Host "Load WMS API image"
 
     minikube image load wms-api:$Version
+    Assert-LastCommandSucceeded "Load WMS API image"
 
     kubectl apply -f .\Deploy\wms-api.yaml
+    Assert-LastCommandSucceeded "Apply WMS API manifest"
 
     kubectl set image `
         deployment/wms-api `
         wms-api=wms-api:$Version
+    Assert-LastCommandSucceeded "Update WMS API image"
 
     kubectl rollout status deployment/wms-api
+    Assert-LastCommandSucceeded "Roll out WMS API"
 }
 
 # ==========================
@@ -177,18 +194,23 @@ if ($SapApi)
     docker build `
         -t sap-api:$Version `
         -f .\Backend\K8sDemo.SapApi\dockerfile .
+    Assert-LastCommandSucceeded "Build SAP API image"
 
     Write-Host "Load SAP API image"
 
     minikube image load sap-api:$Version
+    Assert-LastCommandSucceeded "Load SAP API image"
 
     kubectl apply -f .\Deploy\sap-api.yaml
+    Assert-LastCommandSucceeded "Apply SAP API manifest"
 
     kubectl set image `
         deployment/sap-api `
         sap-api=sap-api:$Version
+    Assert-LastCommandSucceeded "Update SAP API image"
 
     kubectl rollout status deployment/sap-api
+    Assert-LastCommandSucceeded "Roll out SAP API"
 }
 
 # ==========================
@@ -202,18 +224,23 @@ if ($Consumer)
     docker build `
         -t sap-consumer:$Version `
         -f .\Backend\K8sDemo.SapConsumer\dockerfile .
+    Assert-LastCommandSucceeded "Build SAP Consumer image"
 
     Write-Host "Load SAP Consumer image"
 
     minikube image load sap-consumer:$Version
+    Assert-LastCommandSucceeded "Load SAP Consumer image"
 
     kubectl apply -f .\Deploy\sap-consumer.yaml
+    Assert-LastCommandSucceeded "Apply SAP Consumer manifest"
 
     kubectl set image `
         deployment/sap-consumer `
         sap-consumer=sap-consumer:$Version
+    Assert-LastCommandSucceeded "Update SAP Consumer image"
 
     kubectl rollout status deployment/sap-consumer
+    Assert-LastCommandSucceeded "Roll out SAP Consumer"
 }
 
 # ==========================
@@ -228,18 +255,23 @@ if ($React)
         -t react-ui:$Version `
         -f .\Frontend\k8sdemo-react-ui\dockerfile `
         .\Frontend\k8sdemo-react-ui
+    Assert-LastCommandSucceeded "Build React UI image"
 
     Write-Host "Load React UI image"
 
     minikube image load react-ui:$Version
+    Assert-LastCommandSucceeded "Load React UI image"
 
     kubectl apply -f .\Deploy\react-ui.yaml
+    Assert-LastCommandSucceeded "Apply React UI manifest"
 
     kubectl set image `
         deployment/react-ui `
         react-ui=react-ui:$Version
+    Assert-LastCommandSucceeded "Update React UI image"
 
     kubectl rollout status deployment/react-ui
+    Assert-LastCommandSucceeded "Roll out React UI"
 }
 
 Write-Host ""
