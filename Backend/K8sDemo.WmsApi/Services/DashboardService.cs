@@ -1,4 +1,5 @@
 using K8sDemo.Shared.Models;
+using K8sDemo.Shared.Options;
 using K8sDemo.WmsApi.Options;
 using Microsoft.Extensions.Options;
 

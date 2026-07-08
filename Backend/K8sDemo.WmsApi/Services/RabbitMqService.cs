@@ -1,4 +1,4 @@
-using K8sDemo.WmsApi.Options;
+using K8sDemo.Shared.Options;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text;

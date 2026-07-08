@@ -1,4 +1,4 @@
-namespace K8sDemo.SapConsumer.Options;
+namespace K8sDemo.Shared.Options;
 
 public class SapApiOptions
 {

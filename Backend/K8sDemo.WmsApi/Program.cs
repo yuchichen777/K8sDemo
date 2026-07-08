@@ -2,6 +2,8 @@
 
 using K8sDemo.WmsApi.Options;
 
+using K8sDemo.Shared.Options;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.

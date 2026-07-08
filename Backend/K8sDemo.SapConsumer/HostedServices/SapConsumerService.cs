@@ -1,6 +1,6 @@
 using K8sDemo.SapConsumer.Interfaces;
-using K8sDemo.SapConsumer.Options;
 using K8sDemo.Shared.Models;
+using K8sDemo.Shared.Options;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;

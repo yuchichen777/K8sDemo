@@ -4,6 +4,8 @@ using K8sDemo.SapConsumer.Services;
 
 using K8sDemo.SapConsumer.Options;
 
+using K8sDemo.Shared.Options;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
