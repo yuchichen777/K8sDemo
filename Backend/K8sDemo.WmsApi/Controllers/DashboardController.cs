@@ -1,6 +1,8 @@
-﻿using K8sDemo.Shared.Models;
+using K8sDemo.Shared.Models;
+using K8sDemo.WmsApi.Options;
 using K8sDemo.WmsApi.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace K8sDemo.WmsApi.Controllers;
 
@@ -10,13 +12,16 @@ public class DashboardController : ControllerBase
 {
     private readonly HttpClient _httpClient;
     private readonly DashboardService _dashboardService;
+    private readonly SapConsumerOptions _sapConsumerOptions;
 
     public DashboardController(
         HttpClient httpClient,
-        DashboardService dashboardService)
+        DashboardService dashboardService,
+        IOptions<SapConsumerOptions> sapConsumerOptions)
     {
         _httpClient = httpClient;
         _dashboardService = dashboardService;
+        _sapConsumerOptions = sapConsumerOptions.Value;
     }
 
     [HttpGet("status")]
@@ -32,7 +37,7 @@ public class DashboardController : ControllerBase
     {
         var result =
             await _httpClient.GetFromJsonAsync<List<DlqMessage>>(
-                "http://sap-consumer:8080/api/dlq"
+                $"{_sapConsumerOptions.BaseUrl}/api/dlq"
             );
 
         return Ok(result);
@@ -43,7 +48,7 @@ public class DashboardController : ControllerBase
     {
         var response =
             await _httpClient.PostAsJsonAsync(
-                "http://sap-consumer:8080/api/dlq/requeue",
+                $"{_sapConsumerOptions.BaseUrl}/api/dlq/requeue",
                 request);
 
         return Ok(

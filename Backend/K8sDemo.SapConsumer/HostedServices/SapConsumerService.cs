@@ -1,44 +1,46 @@
-﻿using K8sDemo.SapConsumer.Interfaces;
+using K8sDemo.SapConsumer.Interfaces;
+using K8sDemo.SapConsumer.Options;
 using K8sDemo.Shared.Models;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 
-namespace K8sDemo.SapConsumer.Services;
+namespace K8sDemo.SapConsumer.HostedServices;
 
 public class SapConsumerService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IConfiguration _configuration;
+    private readonly RabbitMqOptions _rabbitMqOptions;
 
     public SapConsumerService(
         IServiceScopeFactory scopeFactory,
-        IConfiguration configuration)
+        IOptions<RabbitMqOptions> rabbitMqOptions)
     {
         _scopeFactory = scopeFactory;
-        _configuration = configuration;
+        _rabbitMqOptions = rabbitMqOptions.Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var factory = new ConnectionFactory
         {
-            HostName = _configuration["RabbitMQ:Host"] ?? "rabbitmq",
-            UserName = _configuration["RabbitMQ:Username"] ?? "guest",
-            Password = _configuration["RabbitMQ:Password"] ?? "guest"
+            HostName = _rabbitMqOptions.Host,
+            UserName = _rabbitMqOptions.Username,
+            Password = _rabbitMqOptions.Password
         };
 
         var connection = await factory.CreateConnectionAsync();
         var channel = await connection.CreateChannelAsync();
 
         await channel.ExchangeDeclareAsync(
-            exchange: "sap-events",
+            exchange: _rabbitMqOptions.ExchangeName,
             type: ExchangeType.Direct
         );
 
         await channel.QueueDeclareAsync(
-            queue: "sap-material-dlq",
+            queue: _rabbitMqOptions.MaterialDlqQueueName,
             durable: false,
             exclusive: false,
             autoDelete: false,
@@ -48,11 +50,11 @@ public class SapConsumerService : BackgroundService
         var materialArgs = new Dictionary<string, object?>
         {
             ["x-dead-letter-exchange"] = "",
-            ["x-dead-letter-routing-key"] = "sap-material-dlq"
+            ["x-dead-letter-routing-key"] = _rabbitMqOptions.MaterialDlqQueueName
         };
 
         await channel.QueueDeclareAsync(
-            queue: "sap-material",
+            queue: _rabbitMqOptions.MaterialQueueName,
             durable: false,
             exclusive: false,
             autoDelete: false,
@@ -60,9 +62,9 @@ public class SapConsumerService : BackgroundService
         );
 
         await channel.QueueBindAsync(
-            queue: "sap-material",
-            exchange: "sap-events",
-            routingKey: "material"
+            queue: _rabbitMqOptions.MaterialQueueName,
+            exchange: _rabbitMqOptions.ExchangeName,
+            routingKey: _rabbitMqOptions.MaterialRoutingKey
         );
 
         var consumer = new AsyncEventingBasicConsumer(channel);
@@ -106,7 +108,7 @@ public class SapConsumerService : BackgroundService
         };
 
         await channel.BasicConsumeAsync(
-            queue: "sap-material",
+            queue: _rabbitMqOptions.MaterialQueueName,
             autoAck: false,
             consumer: consumer
         );
@@ -126,8 +128,8 @@ public class SapConsumerService : BackgroundService
         var body = Encoding.UTF8.GetBytes(json);
 
         await channel.BasicPublishAsync(
-            exchange: "sap-events",
-            routingKey: "material",
+            exchange: _rabbitMqOptions.ExchangeName,
+            routingKey: _rabbitMqOptions.MaterialRoutingKey,
             body: body
         );
     }

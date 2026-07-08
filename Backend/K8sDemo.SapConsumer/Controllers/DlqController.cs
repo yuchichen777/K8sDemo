@@ -10,20 +10,18 @@ namespace K8sDemo.SapConsumer.Controllers
     public class DlqController : ControllerBase
     {
         private readonly IDlqService _dlqService;
+        private readonly IStatisticsService _statisticsService;
 
-        public DlqController(IDlqService dlqService)
+        public DlqController(IDlqService dlqService, IStatisticsService statisticsService)
         {
             _dlqService = dlqService;
+            _statisticsService = statisticsService;
         }
 
         [HttpGet]
         public IActionResult Get()
         {
-            return Ok(
-                ConsumerStatistics.DlqMessages
-                    .OrderByDescending(x => x.Time)
-                    .ToList()
-            );
+            return Ok(_statisticsService.GetDlqMessages().OrderByDescending(x => x.Time).ToList());
         }
 
         [HttpPost("requeue")]

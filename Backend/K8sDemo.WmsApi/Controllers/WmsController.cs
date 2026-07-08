@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
 using K8sDemo.Shared.Models;
+using K8sDemo.WmsApi.Options;
 using K8sDemo.WmsApi.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace K8sDemo.WmsApi.Controllers;
 
@@ -9,11 +11,14 @@ namespace K8sDemo.WmsApi.Controllers;
 public class WmsController : ControllerBase
 {
     private readonly RabbitMqPublisher _publisher;
+    private readonly RabbitMqOptions _rabbitMqOptions;
 
     public WmsController(
-        RabbitMqPublisher publisher)
+        RabbitMqPublisher publisher,
+        IOptions<RabbitMqOptions> rabbitMqOptions)
     {
         _publisher = publisher;
+        _rabbitMqOptions = rabbitMqOptions.Value;
     }
 
     [HttpPost("material-picked")]
@@ -30,7 +35,7 @@ public class WmsController : ControllerBase
         };
 
         await _publisher.PublishAsync(
-            "material",
+            _rabbitMqOptions.MaterialRoutingKey,
             evt
         );
 
@@ -56,7 +61,7 @@ public class WmsController : ControllerBase
         };
 
         await _publisher.PublishAsync(
-            "material",
+            _rabbitMqOptions.MaterialRoutingKey,
             evt
         );
 
@@ -81,7 +86,7 @@ public class WmsController : ControllerBase
         };
 
         await _publisher.PublishAsync(
-            "material",
+            _rabbitMqOptions.MaterialRoutingKey,
             evt
         );
 

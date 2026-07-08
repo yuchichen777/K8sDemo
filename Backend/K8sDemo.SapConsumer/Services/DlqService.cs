@@ -1,24 +1,30 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using K8sDemo.SapConsumer.Interfaces;
+using K8sDemo.SapConsumer.Options;
 using K8sDemo.Shared.Models;
+using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
 namespace K8sDemo.SapConsumer.Services;
 
 public class DlqService : IDlqService
 {
-    private readonly IConfiguration _configuration;
+    private readonly RabbitMqOptions _rabbitMqOptions;
+    private readonly IStatisticsService _statistics;
 
-    public DlqService(IConfiguration configuration)
+    public DlqService(
+        IOptions<RabbitMqOptions> rabbitMqOptions,
+        IStatisticsService statistics)
     {
-        _configuration = configuration;
+        _rabbitMqOptions = rabbitMqOptions.Value;
+        _statistics = statistics;
     }
 
     public async Task RequeueAsync(string workOrder, string reelId)
     {
         var item =
-            ConsumerStatistics.DlqMessages
+            _statistics.GetDlqMessages()
                 .FirstOrDefault(x =>
                     x.WorkOrder == workOrder &&
                     x.ReelId == reelId);
@@ -28,9 +34,9 @@ public class DlqService : IDlqService
 
         var factory = new ConnectionFactory
         {
-            HostName = _configuration["RabbitMQ:Host"] ?? "rabbitmq",
-            UserName = _configuration["RabbitMQ:Username"] ?? "guest",
-            Password = _configuration["RabbitMQ:Password"] ?? "guest"
+            HostName = _rabbitMqOptions.Host,
+            UserName = _rabbitMqOptions.Username,
+            Password = _rabbitMqOptions.Password
         };
 
         await using var connection =
@@ -40,7 +46,7 @@ public class DlqService : IDlqService
             await connection.CreateChannelAsync();
 
         await channel.ExchangeDeclareAsync(
-            exchange: "sap-events",
+            exchange: _rabbitMqOptions.ExchangeName,
             type: ExchangeType.Direct
         );
 
@@ -62,10 +68,10 @@ public class DlqService : IDlqService
                 JsonSerializer.Serialize(evt));
 
         await channel.BasicPublishAsync(
-            exchange: "sap-events",
-            routingKey: "material",
+            exchange: _rabbitMqOptions.ExchangeName,
+            routingKey: _rabbitMqOptions.MaterialRoutingKey,
             body: body);
 
-        ConsumerStatistics.DlqMessages.Remove(item);
+        _statistics.RemoveDlqMessage(workOrder, reelId);
     }
 }

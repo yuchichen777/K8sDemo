@@ -1,4 +1,6 @@
-﻿using RabbitMQ.Client;
+using K8sDemo.WmsApi.Options;
+using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
 using System.Text;
 using System.Text.Json;
 
@@ -6,27 +8,27 @@ namespace K8sDemo.WmsApi.Services;
 
 public class RabbitMqPublisher
 {
-    private readonly IConfiguration _configuration;
+    private readonly RabbitMqOptions _options;
 
-    public RabbitMqPublisher(IConfiguration configuration)
+    public RabbitMqPublisher(IOptions<RabbitMqOptions> options)
     {
-        _configuration = configuration;
+        _options = options.Value;
     }
 
     public async Task PublishAsync(string routingKey, object message)
     {
         var factory = new ConnectionFactory
         {
-            HostName = _configuration["RabbitMQ:Host"] ?? "rabbitmq",
-            UserName = _configuration["RabbitMQ:Username"] ?? "guest",
-            Password = _configuration["RabbitMQ:Password"] ?? "guest"
+            HostName = _options.Host,
+            UserName = _options.Username,
+            Password = _options.Password
         };
 
         var connection = await factory.CreateConnectionAsync();
         var channel = await connection.CreateChannelAsync();
 
         await channel.ExchangeDeclareAsync(
-            exchange: "sap-events",
+            exchange: _options.ExchangeName,
             type: ExchangeType.Direct
         );
 
@@ -35,7 +37,7 @@ public class RabbitMqPublisher
         var body = Encoding.UTF8.GetBytes(json);
 
         await channel.BasicPublishAsync(
-            exchange: "sap-events",
+            exchange: _options.ExchangeName,
             routingKey: routingKey,
             body: body
         );

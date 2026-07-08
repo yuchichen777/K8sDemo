@@ -1,4 +1,6 @@
-﻿using System.Net.Http.Headers;
+using K8sDemo.WmsApi.Options;
+using Microsoft.Extensions.Options;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace K8sDemo.WmsApi.Services;
@@ -6,24 +8,18 @@ namespace K8sDemo.WmsApi.Services;
 public class RabbitMqService
 {
     private readonly HttpClient _httpClient;
-    private readonly IConfiguration _configuration;
+    private readonly RabbitMqOptions _options;
 
     public RabbitMqService(
         HttpClient httpClient,
-        IConfiguration configuration)
+        IOptions<RabbitMqOptions> options)
     {
         _httpClient = httpClient;
-        _configuration = configuration;
-
-        var username =
-            _configuration["RabbitMQ:Username"] ?? "guest";
-
-        var password =
-            _configuration["RabbitMQ:Password"] ?? "guest";
+        _options = options.Value;
 
         var auth =
             Convert.ToBase64String(
-                Encoding.UTF8.GetBytes($"{username}:{password}"));
+                Encoding.UTF8.GetBytes($"{_options.Username}:{_options.Password}"));
 
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue(
@@ -35,17 +31,11 @@ public class RabbitMqService
     public async Task<int> GetQueueCountAsync(
         string queueName)
     {
-        var host =
-            _configuration["RabbitMQ:Host"] ?? "rabbitmq";
-
-        var managementPort =
-            _configuration["RabbitMQ:ManagementPort"] ?? "15672";
-
         try
         {
             var response =
                 await _httpClient.GetFromJsonAsync<RabbitQueue>(
-                    $"http://{host}:{managementPort}/api/queues/%2F/{queueName}"
+                    $"http://{_options.Host}:{_options.ManagementPort}/api/queues/%2F/{queueName}"
                 );
 
             return response?.messages ?? 0;

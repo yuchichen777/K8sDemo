@@ -1,4 +1,6 @@
-﻿using K8sDemo.Shared.Models;
+using K8sDemo.Shared.Models;
+using K8sDemo.WmsApi.Options;
+using Microsoft.Extensions.Options;
 
 namespace K8sDemo.WmsApi.Services;
 
@@ -6,11 +8,22 @@ public class DashboardService
 {
     private readonly HttpClient _httpClient;
     private readonly RabbitMqService _rabbitMqService;
+    private readonly RabbitMqOptions _rabbitMqOptions;
+    private readonly SapApiOptions _sapApiOptions;
+    private readonly SapConsumerOptions _sapConsumerOptions;
 
-    public DashboardService(HttpClient httpClient, RabbitMqService rabbitMqService)
+    public DashboardService(
+        HttpClient httpClient,
+        RabbitMqService rabbitMqService,
+        IOptions<RabbitMqOptions> rabbitMqOptions,
+        IOptions<SapApiOptions> sapApiOptions,
+        IOptions<SapConsumerOptions> sapConsumerOptions)
     {
         _httpClient = httpClient;
         _rabbitMqService = rabbitMqService;
+        _rabbitMqOptions = rabbitMqOptions.Value;
+        _sapApiOptions = sapApiOptions.Value;
+        _sapConsumerOptions = sapConsumerOptions.Value;
     }
 
     public async Task<DashboardStatus> GetStatusAsync()
@@ -24,7 +37,7 @@ public class DashboardService
         try
         {
             var response = await _httpClient.GetAsync(
-                "http://sap-api:8080/api/sap/health"
+                $"{_sapApiOptions.BaseUrl}/api/sap/health"
             );
 
             if (response.IsSuccessStatusCode)
@@ -41,7 +54,7 @@ public class DashboardService
         {
             statistics =
                 await _httpClient.GetFromJsonAsync<DashboardStatistics>(
-                    "http://sap-consumer:8080/api/statistics"
+                    $"{_sapConsumerOptions.BaseUrl}/api/statistics"
                 )
                 ?? new DashboardStatistics();
 
@@ -56,12 +69,12 @@ public class DashboardService
         {
             statistics.QueueCount =
                 await _rabbitMqService.GetQueueCountAsync(
-                    "sap-material"
+                    _rabbitMqOptions.MaterialQueueName
                 );
 
             statistics.DlqQueueCount =
                 await _rabbitMqService.GetQueueCountAsync(
-                    "sap-material-dlq"
+                    _rabbitMqOptions.MaterialDlqQueueName
                 );
 
             rabbitMqStatus =

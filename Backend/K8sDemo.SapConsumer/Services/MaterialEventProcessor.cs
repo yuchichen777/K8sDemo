@@ -2,6 +2,7 @@
 using K8sDemo.SapConsumer.Models;
 using K8sDemo.Shared.Models;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace K8sDemo.SapConsumer.Services
 {
@@ -9,13 +10,19 @@ namespace K8sDemo.SapConsumer.Services
     {
         private readonly ISapApiClient _sapApiClient;
         private readonly IRetryService _retryService;
+        private readonly IStatisticsService _statisticsService;
+        private readonly ILogger<MaterialEventProcessor> _logger;
 
         public MaterialEventProcessor(
             ISapApiClient sapApiClient,
-            IRetryService retryService)
+            IRetryService retryService,
+            IStatisticsService statisticsService,
+            ILogger<MaterialEventProcessor> logger)
         {
             _sapApiClient = sapApiClient;
             _retryService = retryService;
+            _statisticsService = statisticsService;
+            _logger = logger;
         }
 
         public async Task<ProcessResult> ProcessAsync(MaterialPickedEvent evt)
@@ -28,57 +35,39 @@ namespace K8sDemo.SapConsumer.Services
 
                 sw.Stop();
 
-                ConsumerStatistics.AddProcessTime(sw.Elapsed.TotalMilliseconds);
-
-                Console.WriteLine($"[SapConsumer] ProcessTime={sw.ElapsedMilliseconds}ms");
+                _logger.LogInformation("Process completed in {ElapsedMs} ms", sw.ElapsedMilliseconds);
 
                 if (success)
                 {
-                    ConsumerStatistics.SuccessCount++;
-                    ConsumerStatistics.AddEventTime();
-                    ConsumerStatistics.AddLog(new Shared.Models.EventLog
-                    {
-                        Time = DateTime.UtcNow,
-                        WorkOrder = evt.WorkOrder,
-                        ReelId = evt.ReelId,
-                        Result = "Success"
-                    });
-                    ConsumerStatistics.AddTrend();
+                    _statisticsService.RecordSuccess(evt, sw.Elapsed.TotalMilliseconds);
+                    _logger.LogInformation("Material {WorkOrder}/{ReelId} uploaded successfully.", evt.WorkOrder, evt.ReelId);
 
                     return new ProcessResult
                     {
                         Success = true
                     };
+
                 }
 
-                return HandleFailure(evt, "Retry Limit Exceeded");
+                return HandleFailure(evt, "Retry Limit Exceeded", sw.Elapsed.TotalMilliseconds);
             }
-            catch
+            catch (Exception ex)
             {
                 sw.Stop();
 
-                ConsumerStatistics.AddProcessTime(sw.Elapsed.TotalMilliseconds);
+                _logger.LogError(ex, "Unexpected error while processing {WorkOrder}/{ReelId}", evt.WorkOrder, evt.ReelId);
 
-                return HandleFailure(evt, "Exception Retry Limit Exceeded");
+                return HandleFailure(evt, "Exception Retry Limit Exceeded", sw.Elapsed.TotalMilliseconds);
             }
         }
 
-        private ProcessResult HandleFailure(
-            MaterialPickedEvent evt,
-            string dlqMessage)
+        private ProcessResult HandleFailure(MaterialPickedEvent evt, string dlqMessage, double processMs)
         {
             if (_retryService.CanRetry(evt))
             {
-                ConsumerStatistics.RetryCount++;
-                ConsumerStatistics.AddEventTime();
-                ConsumerStatistics.AddLog(new Shared.Models.EventLog
-                {
-                    Time = DateTime.UtcNow,
-                    WorkOrder = evt.WorkOrder,
-                    ReelId = evt.ReelId,
-                    Result = $"Retry {evt.RetryCount + 1}"
-                });
-                ConsumerStatistics.AddTrend();
+                _logger.LogWarning("Retry {RetryCount} for {WorkOrder}/{ReelId}", evt.RetryCount + 1, evt.WorkOrder, evt.ReelId);
+
+                _statisticsService.RecordRetry(evt, processMs);
 
                 _retryService.IncreaseRetry(evt);
 
@@ -88,28 +77,9 @@ namespace K8sDemo.SapConsumer.Services
                 };
             }
 
-            ConsumerStatistics.FailCount++;
-            ConsumerStatistics.DlqCount++;
-            ConsumerStatistics.AddEventTime();
-            ConsumerStatistics.AddLog(new Shared.Models.EventLog
-            {
-                Time = DateTime.UtcNow,
-                WorkOrder = evt.WorkOrder,
-                ReelId = evt.ReelId,
-                Result = "DLQ"
-            });
-            ConsumerStatistics.AddTrend();
+            _logger.LogError("Moved to DLQ. WorkOrder={WorkOrder}, ReelId={ReelId}, Error={Error}", evt.WorkOrder, evt.ReelId, dlqMessage);
 
-            ConsumerStatistics.DlqMessages.Add(new DlqMessage
-            {
-                WorkOrder = evt.WorkOrder,
-                ReelId = evt.ReelId,
-                Material = evt.Material,
-                Qty = evt.Qty,
-                RetryCount = evt.RetryCount,
-                Time = DateTime.UtcNow,
-                ErrorMessage = dlqMessage
-            });
+            _statisticsService.RecordDlq(evt, dlqMessage, processMs);
 
             return new ProcessResult
             {

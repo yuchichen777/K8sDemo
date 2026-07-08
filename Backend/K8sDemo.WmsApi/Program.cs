@@ -1,5 +1,7 @@
 ﻿using K8sDemo.WmsApi.Services;
 
+using K8sDemo.WmsApi.Options;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -7,6 +9,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 
 builder.Services.AddControllers();
+
+builder.Services.Configure<RabbitMqOptions>(
+    builder.Configuration.GetSection("RabbitMQ"));
+builder.Services.Configure<SapApiOptions>(
+    builder.Configuration.GetSection("SapApi"));
+builder.Services.Configure<SapConsumerOptions>(
+    builder.Configuration.GetSection("SapConsumer"));
 
 builder.Services.AddHttpClient();
 
