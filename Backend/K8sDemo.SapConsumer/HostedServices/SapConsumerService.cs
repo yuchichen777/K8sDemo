@@ -1,4 +1,5 @@
 using K8sDemo.SapConsumer.Interfaces;
+using K8sDemo.SapConsumer.Services;
 using K8sDemo.Shared.Models;
 using K8sDemo.Shared.Options;
 using Microsoft.Extensions.Options;
@@ -13,13 +14,16 @@ public class SapConsumerService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly RabbitMqOptions _rabbitMqOptions;
+    private readonly RabbitMqTopologyInitializer _topologyInitializer;
 
     public SapConsumerService(
         IServiceScopeFactory scopeFactory,
-        IOptions<RabbitMqOptions> rabbitMqOptions)
+        IOptions<RabbitMqOptions> rabbitMqOptions,
+        RabbitMqTopologyInitializer topologyInitializer)
     {
         _scopeFactory = scopeFactory;
         _rabbitMqOptions = rabbitMqOptions.Value;
+        _topologyInitializer = topologyInitializer;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -34,53 +38,7 @@ public class SapConsumerService : BackgroundService
         var connection = await factory.CreateConnectionAsync();
         var channel = await connection.CreateChannelAsync();
 
-        await channel.ExchangeDeclareAsync(
-            exchange: _rabbitMqOptions.ExchangeName,
-            type: ExchangeType.Direct
-        );
-
-        await channel.QueueDeclareAsync(
-            queue: _rabbitMqOptions.MaterialDlqQueueName,
-            durable: false,
-            exclusive: false,
-            autoDelete: false,
-            arguments: null
-        );
-
-        var retryArgs = new Dictionary<string, object?>
-        {
-            ["x-message-ttl"] = _rabbitMqOptions.RetryDelayMilliseconds,
-            ["x-dead-letter-exchange"] = _rabbitMqOptions.ExchangeName,
-            ["x-dead-letter-routing-key"] = _rabbitMqOptions.MaterialRoutingKey
-        };
-
-        await channel.QueueDeclareAsync(
-            queue: _rabbitMqOptions.MaterialRetryQueueName,
-            durable: false,
-            exclusive: false,
-            autoDelete: false,
-            arguments: retryArgs
-        );
-
-        var materialArgs = new Dictionary<string, object?>
-        {
-            ["x-dead-letter-exchange"] = "",
-            ["x-dead-letter-routing-key"] = _rabbitMqOptions.MaterialDlqQueueName
-        };
-
-        await channel.QueueDeclareAsync(
-            queue: _rabbitMqOptions.MaterialQueueName,
-            durable: false,
-            exclusive: false,
-            autoDelete: false,
-            arguments: materialArgs
-        );
-
-        await channel.QueueBindAsync(
-            queue: _rabbitMqOptions.MaterialQueueName,
-            exchange: _rabbitMqOptions.ExchangeName,
-            routingKey: _rabbitMqOptions.MaterialRoutingKey
-        );
+        await _topologyInitializer.InitializeAsync(channel);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
 

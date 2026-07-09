@@ -94,6 +94,12 @@ sap-events exchange
   routing key: material
   -> sap-material
 
+SAP Consumer startup
+  -> 宣告 exchange
+  -> 宣告 sap-material
+  -> 宣告 sap-material-retry
+  -> 宣告 sap-material-dlq
+
 retry count < 3
   -> sap-material-retry
   -> 等待 TTL

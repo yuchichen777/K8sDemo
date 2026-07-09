@@ -11,13 +11,16 @@ namespace K8sDemo.SapConsumer.Services;
 public class DlqService : IDlqService
 {
     private readonly RabbitMqOptions _rabbitMqOptions;
+    private readonly RabbitMqTopologyInitializer _topologyInitializer;
     private readonly IStatisticsService _statistics;
 
     public DlqService(
         IOptions<RabbitMqOptions> rabbitMqOptions,
+        RabbitMqTopologyInitializer topologyInitializer,
         IStatisticsService statistics)
     {
         _rabbitMqOptions = rabbitMqOptions.Value;
+        _topologyInitializer = topologyInitializer;
         _statistics = statistics;
     }
 
@@ -45,10 +48,7 @@ public class DlqService : IDlqService
         await using var channel =
             await connection.CreateChannelAsync();
 
-        await channel.ExchangeDeclareAsync(
-            exchange: _rabbitMqOptions.ExchangeName,
-            type: ExchangeType.Direct
-        );
+        await _topologyInitializer.InitializeAsync(channel);
 
         var evt =
             new MaterialPickedEvent

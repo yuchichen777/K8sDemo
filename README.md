@@ -18,6 +18,7 @@ React UI
 - RabbitMQ event publishing and consuming
 - Retry mechanism
 - Dead letter queue (DLQ)
+- Centralized RabbitMQ topology initialization
 - Manual DLQ requeue
 - Dashboard statistics
 - Kubernetes Deployments, Services, Ingress, ConfigMap, and Secret
@@ -113,6 +114,8 @@ sap-events exchange
   -> sap-material
 
 SAP Consumer
+  startup
+    -> initialize exchange, material queue, retry queue, and DLQ
   success
     -> ack
   retry count < Retry__MaxRetryCount

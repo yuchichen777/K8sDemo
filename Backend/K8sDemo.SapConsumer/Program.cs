@@ -36,6 +36,7 @@ builder.Services.AddScoped<IDlqService, DlqService>();
 builder.Services.AddScoped<IRetryService, RetryService>();
 builder.Services.AddScoped<IMaterialEventProcessor, MaterialEventProcessor>();
 
+builder.Services.AddSingleton<RabbitMqTopologyInitializer>();
 builder.Services.AddSingleton<IStatisticsService, StatisticsService>();
 
 builder.Services.AddHostedService<SapConsumerService>();
