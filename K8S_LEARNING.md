@@ -1,19 +1,10 @@
-# Kubernetes 下一步學習路線
+# K8sDemo Learning Notes
 
-## 你現在已經有的基礎
+這份筆記整理這個專案可以練習的 Kubernetes 與可觀測性主題。
 
-這個專案已經包含幾個很好的 Kubernetes 練習元素：
+## 1. 基本資源觀察
 
-- 多個服務：React UI、WMS API、SAP API、SAP Consumer
-- 服務間通訊：Ingress、Service、HTTP API
-- 非同步流程：RabbitMQ publish/consume
-- 部署腳本：build image、load 到 minikube、更新 Deployment
-
-## 第一階段：把服務穩定跑起來
-
-目標：理解 Pod、Deployment、Service、Ingress 的日常操作。
-
-練習：
+練習目標：理解 Pod、Deployment、Service、Ingress 的關係。
 
 ```powershell
 kubectl get pods
@@ -23,40 +14,78 @@ kubectl describe pod <pod-name>
 kubectl logs <pod-name>
 ```
 
-你要能回答：
+你應該能回答：
 
-- 哪些 Pod 正在跑？
-- 哪個 Service 對應哪個 Deployment？
+- 哪些 Pod 正在 Running？
+- Service selector 對應哪些 Pod labels？
 - Ingress 如何把 `/api/wms` 導到 `wms-api`？
-- Pod 如果啟動失敗，要先看 logs 還是 describe？
+- Pod 不 Ready 時要先看 `describe` 還是 `logs`？
 
-## 第二階段：健康檢查與自我修復
+## 2. ConfigMap 與 Secret
 
-目標：理解 livenessProbe 和 readinessProbe。
+練習目標：把設定從程式碼移到 Kubernetes。
 
-這個專案的 Deployment 已經加入：
+這個專案使用：
 
-- readinessProbe：決定 Pod 什麼時候可以接流量
-- livenessProbe：決定 Pod 是否需要重啟
-
-練習：
-
-```powershell
-kubectl describe deployment wms-api
-kubectl describe pod <wms-api-pod>
+```text
+Deploy/rabbitmq-config.yaml
 ```
 
-你要觀察：
+查看設定：
 
-- probe 成功時 Pod 會變成 Ready
-- probe 失敗時 Kubernetes 會怎麼反應
-- Service 只會把流量送給 Ready 的 Pod
+```powershell
+kubectl get configmap rabbitmq-config -o yaml
+kubectl describe secret rabbitmq-secret
+```
 
-## 第三階段：滾動更新與回復
+確認環境變數有注入：
 
-目標：理解 image tag、rollout、rollback。
+```powershell
+kubectl exec deploy/wms-api -- printenv | findstr RabbitMQ
+kubectl exec deploy/sap-consumer -- printenv | findstr RabbitMQ
+```
 
-練習：
+重點：
+
+- ConfigMap 適合一般設定
+- Secret 適合帳號、密碼
+- .NET 用 `__` 對應巢狀設定，例如 `RabbitMQ__Host`
+
+## 3. Health Checks 與 Probes
+
+練習目標：理解 livenessProbe 與 readinessProbe 的差異。
+
+服務端點：
+
+```text
+/health/live
+/health/ready
+/healthz
+```
+
+Kubernetes probes：
+
+- liveness：服務本身是否還活著
+- readiness：服務是否已準備好接流量
+
+查看：
+
+```powershell
+kubectl describe pod -l app=wms-api
+kubectl describe pod -l app=sap-consumer
+kubectl describe pod -l app=sap-api
+```
+
+手動測試：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:<ingress-port>/health/live
+Invoke-RestMethod http://127.0.0.1:<ingress-port>/health/ready
+```
+
+## 4. Rolling Update 與 Rollback
+
+練習目標：理解 image tag、rollout、rollback。
 
 ```powershell
 kubectl rollout status deployment/wms-api
@@ -64,25 +93,116 @@ kubectl rollout history deployment/wms-api
 kubectl rollout undo deployment/wms-api
 ```
 
-你可以故意改一個 API 回傳文字，重新部署，再觀察新版如何替換舊版。
+你可以故意改一段回應文字、重新部署，觀察新舊 Pod 如何替換。
 
-## 第四階段：設定管理
+## 5. RabbitMQ Retry / DLQ Flow
 
-目標：把硬編碼設定移到 Kubernetes。
+練習目標：理解事件流、重試與死信。
 
-建議下一個實作：
+送出事件：
 
-- 建立 ConfigMap：放 `RabbitMQ__Host`
-- 建立 Secret：放 RabbitMQ 帳號密碼
-- Deployment 用 `envFrom` 或 `valueFrom` 注入設定
+```powershell
+Invoke-RestMethod -Method Post http://127.0.0.1:<ingress-port>/api/wms/material-picked
+Invoke-RestMethod -Method Post http://127.0.0.1:<ingress-port>/api/wms/material-retry
+Invoke-RestMethod -Method Post http://127.0.0.1:<ingress-port>/api/wms/material-fail
+```
 
-這會讓你開始接近真實環境的做法。
+看 dashboard：
 
-## 第五階段：擴縮與資源
+```powershell
+Invoke-RestMethod http://127.0.0.1:<ingress-port>/api/dashboard/status
+Invoke-RestMethod http://127.0.0.1:<ingress-port>/api/dashboard/dlq
+```
 
-目標：理解 requests、limits、replicas、HPA。
+看 Consumer logs：
 
-練習：
+```powershell
+kubectl logs deployment/sap-consumer --tail=120
+```
+
+## 6. Prometheus Metrics
+
+練習目標：讓 Prometheus scrape Pod metrics。
+
+部署 Prometheus：
+
+```powershell
+.\Deploy\deploy-all.ps1 -Monitoring
+```
+
+開 Prometheus UI：
+
+```powershell
+kubectl port-forward svc/prometheus 19090:9090
+```
+
+瀏覽：
+
+```text
+http://127.0.0.1:19090
+```
+
+查 targets：
+
+```promql
+up
+```
+
+查業務指標：
+
+```promql
+k8sdemo_wms_published_total
+k8sdemo_sap_api_requests_total
+k8sdemo_sap_consumer_success_total
+k8sdemo_sap_consumer_retry_total
+k8sdemo_sap_consumer_dlq_total
+k8sdemo_sap_consumer_dlq_messages
+```
+
+查最近 5 分鐘變化：
+
+```promql
+increase(k8sdemo_wms_published_total[5m])
+increase(k8sdemo_sap_consumer_retry_total[5m])
+increase(k8sdemo_sap_consumer_dlq_total[5m])
+```
+
+## 7. Grafana Dashboard
+
+練習目標：把 Prometheus 指標視覺化。
+
+部署 Grafana：
+
+```powershell
+.\Deploy\deploy-all.ps1 -Grafana
+```
+
+開 Grafana：
+
+```powershell
+kubectl port-forward svc/grafana 13000:3000
+```
+
+瀏覽：
+
+```text
+http://127.0.0.1:13000
+```
+
+登入：
+
+```text
+admin / admin
+```
+
+已預先建立：
+
+- Prometheus datasource
+- `K8sDemo Overview` dashboard
+
+## 8. 資源與擴展練習
+
+練習目標：理解 requests、limits、replicas。
 
 ```powershell
 kubectl scale deployment wms-api --replicas=3
@@ -90,70 +210,24 @@ kubectl get pods -l app=wms-api
 kubectl top pods
 ```
 
-下一步可以加：
+後續可練：
 
 - metrics-server
 - HorizontalPodAutoscaler
-- 壓力測試工具
+- 壓力測試
 
-## 第六階段：可觀測性
+## 9. 常見 Build 問題
 
-目標：不只是服務有沒有跑，而是知道它為什麼這樣跑。
-
-建議方向：
-
-- 結構化 logging
-- OpenTelemetry
-- Prometheus
-- Grafana dashboard
-
-對這個專案來說，最有價值的指標會是：
-
-- WMS API 請求數
-- RabbitMQ queue length
-- SAP Consumer 成功/失敗處理數
-- DLQ message count
-
-## 我建議你的下一個實作
-
-最適合的下一步是：把 RabbitMQ 設定改成 ConfigMap + Secret。
-
-原因是它剛好連到 Kubernetes 很核心的觀念：
-
-- 設定和程式分離
-- Secret 不寫死在程式
-- Deployment 注入環境變數
-- 本機和叢集環境可以用不同設定
-
-完成後，再接著練 HPA 和 Prometheus，會很順。
-
-## ConfigMap + Secret 練習
-
-這個專案已經加入 `Deploy/rabbitmq-config.yaml`，你可以用它練習：
+如果 Windows 上遇到 `obj` 或 `bin` 檔案 `Access denied`：
 
 ```powershell
-kubectl apply -f .\Deploy\rabbitmq-config.yaml
-kubectl get configmap rabbitmq-config
-kubectl get secret rabbitmq-secret
-kubectl describe configmap rabbitmq-config
-kubectl describe secret rabbitmq-secret
+dotnet build-server shutdown
+
+Get-ChildItem C:\Workspace\Project\K8sDemo -Recurse -Directory -Include bin,obj |
+  Remove-Item -Recurse -Force
+
+dotnet restore C:\Workspace\Project\K8sDemo\K8sDemo.slnx
+dotnet build C:\Workspace\Project\K8sDemo\K8sDemo.slnx -m:1 -nr:false
 ```
 
-觀察重點：
-
-- ConfigMap 可以直接看到內容
-- Secret 預設不會在 describe 裡顯示明文
-- Deployment 用 `valueFrom` 把設定注入 container
-
-再重新部署 WMS API 和 SAP Consumer：
-
-```powershell
-.\Deploy\deploy-all.ps1 -Wms -Consumer
-```
-
-確認環境變數有進 Pod：
-
-```powershell
-kubectl exec deploy/wms-api -- printenv | findstr RabbitMQ
-kubectl exec deploy/sap-consumer -- printenv | findstr RabbitMQ
-```
+這通常是 build server 或舊輸出檔被鎖住，不是程式碼錯誤。
