@@ -3,7 +3,8 @@ param(
     [switch]$SapApi,
     [switch]$Consumer,
     [switch]$React,
-    [switch]$Monitoring
+    [switch]$Monitoring,
+    [switch]$Grafana
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +15,7 @@ Write-Host ""
 Write-Host "Deploy Version: $Version"
 Write-Host ""
 
-if (-not ($Wms -or $SapApi -or $Consumer -or $React -or $Monitoring))
+if (-not ($Wms -or $SapApi -or $Consumer -or $React -or $Monitoring -or $Grafana))
 {
     Write-Host "No service selected."
     Write-Host "Usage:"
@@ -23,6 +24,7 @@ if (-not ($Wms -or $SapApi -or $Consumer -or $React -or $Monitoring))
     Write-Host ".\Deploy\deploy-all.ps1 -Consumer"
     Write-Host ".\Deploy\deploy-all.ps1 -React"
     Write-Host ".\Deploy\deploy-all.ps1 -Monitoring"
+    Write-Host ".\Deploy\deploy-all.ps1 -Grafana"
     Write-Host ".\Deploy\deploy-all.ps1 -Wms -SapApi -Consumer -React"
     exit 0
 }
@@ -289,6 +291,21 @@ if ($Monitoring)
 
     kubectl rollout status deployment/prometheus
     Assert-LastCommandSucceeded "Roll out Prometheus"
+}
+
+# ==========================
+# Grafana
+# ==========================
+
+if ($Grafana)
+{
+    Write-Host "Deploy Grafana"
+
+    kubectl apply -f .\Deploy\grafana.yaml
+    Assert-LastCommandSucceeded "Apply Grafana manifest"
+
+    kubectl rollout status deployment/grafana
+    Assert-LastCommandSucceeded "Roll out Grafana"
 }
 
 Write-Host ""

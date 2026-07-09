@@ -1,0 +1,225 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      access: proxy
+      url: http://prometheus:9090
+      isDefault: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+    - name: K8sDemo
+      orgId: 1
+      folder: K8sDemo
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 30
+      options:
+        path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-k8sdemo-dashboard
+data:
+  k8sdemo-dashboard.json: |
+    {
+      "uid": "k8sdemo-overview",
+      "title": "K8sDemo Overview",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "10s",
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "WMS Published",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "k8sdemo_wms_published_total",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "SAP API Requests",
+          "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "k8sdemo_sap_api_requests_total",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Consumer Success",
+          "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "k8sdemo_sap_consumer_success_total",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "DLQ Messages",
+          "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+          "targets": [
+            {
+              "expr": "k8sdemo_sap_consumer_dlq_messages",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Published / Success / Retry / DLQ",
+          "gridPos": { "x": 0, "y": 4, "w": 24, "h": 8 },
+          "targets": [
+            {
+              "expr": "increase(k8sdemo_wms_published_total[5m])",
+              "legendFormat": "WMS published",
+              "refId": "A"
+            },
+            {
+              "expr": "increase(k8sdemo_sap_consumer_success_total[5m])",
+              "legendFormat": "Consumer success",
+              "refId": "B"
+            },
+            {
+              "expr": "increase(k8sdemo_sap_consumer_retry_total[5m])",
+              "legendFormat": "Consumer retry",
+              "refId": "C"
+            },
+            {
+              "expr": "increase(k8sdemo_sap_consumer_dlq_total[5m])",
+              "legendFormat": "Consumer DLQ",
+              "refId": "D"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "SAP API Success / Failure",
+          "gridPos": { "x": 0, "y": 12, "w": 24, "h": 8 },
+          "targets": [
+            {
+              "expr": "increase(k8sdemo_sap_api_success_total[5m])",
+              "legendFormat": "SAP API success",
+              "refId": "A"
+            },
+            {
+              "expr": "increase(k8sdemo_sap_api_failure_total[5m])",
+              "legendFormat": "SAP API failure",
+              "refId": "B"
+            }
+          ]
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_USER
+          value: admin
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: admin
+        - name: GF_USERS_ALLOW_SIGN_UP
+          value: "false"
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 3000
+          initialDelaySeconds: 30
+          timeoutSeconds: 3
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources
+          readOnly: true
+        - name: grafana-dashboards
+          mountPath: /etc/grafana/provisioning/dashboards
+          readOnly: true
+        - name: grafana-k8sdemo-dashboard
+          mountPath: /var/lib/grafana/dashboards
+          readOnly: true
+      volumes:
+      - name: grafana-datasources
+        configMap:
+          name: grafana-datasources
+      - name: grafana-dashboards
+        configMap:
+          name: grafana-dashboards
+      - name: grafana-k8sdemo-dashboard
+        configMap:
+          name: grafana-k8sdemo-dashboard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  type: ClusterIP
+  selector:
+    app: grafana
+  ports:
+  - port: 3000
+    targetPort: 3000
