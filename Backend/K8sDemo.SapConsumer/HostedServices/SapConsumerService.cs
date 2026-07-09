@@ -47,6 +47,21 @@ public class SapConsumerService : BackgroundService
             arguments: null
         );
 
+        var retryArgs = new Dictionary<string, object?>
+        {
+            ["x-message-ttl"] = _rabbitMqOptions.RetryDelayMilliseconds,
+            ["x-dead-letter-exchange"] = _rabbitMqOptions.ExchangeName,
+            ["x-dead-letter-routing-key"] = _rabbitMqOptions.MaterialRoutingKey
+        };
+
+        await channel.QueueDeclareAsync(
+            queue: _rabbitMqOptions.MaterialRetryQueueName,
+            durable: false,
+            exclusive: false,
+            autoDelete: false,
+            arguments: retryArgs
+        );
+
         var materialArgs = new Dictionary<string, object?>
         {
             ["x-dead-letter-exchange"] = "",
@@ -96,8 +111,6 @@ public class SapConsumerService : BackgroundService
 
             if (result.ShouldRetry)
             {
-                await Task.Delay(3000, stoppingToken);
-
                 await PublishRetryAsync(channel, evt);
 
                 await channel.BasicAckAsync(ea.DeliveryTag, false);
@@ -128,8 +141,8 @@ public class SapConsumerService : BackgroundService
         var body = Encoding.UTF8.GetBytes(json);
 
         await channel.BasicPublishAsync(
-            exchange: _rabbitMqOptions.ExchangeName,
-            routingKey: _rabbitMqOptions.MaterialRoutingKey,
+            exchange: "",
+            routingKey: _rabbitMqOptions.MaterialRetryQueueName,
             body: body
         );
     }

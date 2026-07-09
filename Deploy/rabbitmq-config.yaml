@@ -7,8 +7,10 @@ data:
   RabbitMQ__ManagementPort: "15672"
   RabbitMQ__ExchangeName: sap-events
   RabbitMQ__MaterialQueueName: sap-material
+  RabbitMQ__MaterialRetryQueueName: sap-material-retry
   RabbitMQ__MaterialDlqQueueName: sap-material-dlq
   RabbitMQ__MaterialRoutingKey: material
+  RabbitMQ__RetryDelayMilliseconds: "3000"
   SapApi__BaseUrl: http://sap-api:8080
   SapConsumer__BaseUrl: http://sap-consumer:8080
   Retry__MaxRetryCount: "3"

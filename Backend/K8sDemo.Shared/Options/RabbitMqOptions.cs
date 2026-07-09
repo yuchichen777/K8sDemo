@@ -8,6 +8,8 @@ public class RabbitMqOptions
     public string Password { get; set; } = string.Empty;
     public string ExchangeName { get; set; } = string.Empty;
     public string MaterialQueueName { get; set; } = string.Empty;
+    public string MaterialRetryQueueName { get; set; } = string.Empty;
     public string MaterialDlqQueueName { get; set; } = string.Empty;
     public string MaterialRoutingKey { get; set; } = string.Empty;
+    public int RetryDelayMilliseconds { get; set; } = 3000;
 }

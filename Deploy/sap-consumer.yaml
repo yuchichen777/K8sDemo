@@ -46,6 +46,11 @@ spec:
             configMapKeyRef:
               name: rabbitmq-config
               key: RabbitMQ__MaterialQueueName
+        - name: RabbitMQ__MaterialRetryQueueName
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__MaterialRetryQueueName
         - name: RabbitMQ__MaterialDlqQueueName
           valueFrom:
             configMapKeyRef:
@@ -56,6 +61,11 @@ spec:
             configMapKeyRef:
               name: rabbitmq-config
               key: RabbitMQ__MaterialRoutingKey
+        - name: RabbitMQ__RetryDelayMilliseconds
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RabbitMQ__RetryDelayMilliseconds
         - name: SapApi__BaseUrl
           valueFrom:
             configMapKeyRef:

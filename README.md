@@ -94,11 +94,38 @@ RabbitMQ__Host
 RabbitMQ__ManagementPort
 RabbitMQ__ExchangeName
 RabbitMQ__MaterialQueueName
+RabbitMQ__MaterialRetryQueueName
 RabbitMQ__MaterialDlqQueueName
 RabbitMQ__MaterialRoutingKey
+RabbitMQ__RetryDelayMilliseconds
 SapApi__BaseUrl
 SapConsumer__BaseUrl
 Retry__MaxRetryCount
+```
+
+## RabbitMQ Retry / DLQ Flow
+
+Retry delay is handled by RabbitMQ, not by blocking the SAP Consumer.
+
+```text
+sap-events exchange
+  routing key: material
+  -> sap-material
+
+SAP Consumer
+  success
+    -> ack
+  retry count < Retry__MaxRetryCount
+    -> publish to sap-material-retry
+    -> ack original message
+  retry count >= Retry__MaxRetryCount
+    -> nack original message
+    -> sap-material-dlq
+
+sap-material-retry
+  x-message-ttl: RabbitMQ__RetryDelayMilliseconds
+  x-dead-letter-exchange: sap-events
+  x-dead-letter-routing-key: material
 ```
 
 RabbitMQ credentials are stored in the `rabbitmq-secret` Secret:

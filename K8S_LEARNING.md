@@ -25,7 +25,7 @@ kubectl logs <pod-name>
 
 練習目標：把設定從程式碼移到 Kubernetes。
 
-這個專案使用：
+設定檔：
 
 ```text
 Deploy/rabbitmq-config.yaml
@@ -49,7 +49,7 @@ kubectl exec deploy/sap-consumer -- printenv | findstr RabbitMQ
 
 - ConfigMap 適合一般設定
 - Secret 適合帳號、密碼
-- .NET 用 `__` 對應巢狀設定，例如 `RabbitMQ__Host`
+- .NET 使用 `__` 對應巢狀設定，例如 `RabbitMQ__Host`
 
 ## 3. Health Checks 與 Probes
 
@@ -76,28 +76,33 @@ kubectl describe pod -l app=sap-consumer
 kubectl describe pod -l app=sap-api
 ```
 
-手動測試：
+手動驗證：
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:<ingress-port>/health/live
 Invoke-RestMethod http://127.0.0.1:<ingress-port>/health/ready
 ```
 
-## 4. Rolling Update 與 Rollback
+## 4. RabbitMQ Retry / DLQ Flow
 
-練習目標：理解 image tag、rollout、rollback。
+練習目標：理解事件流、重試佇列與死信佇列。
 
-```powershell
-kubectl rollout status deployment/wms-api
-kubectl rollout history deployment/wms-api
-kubectl rollout undo deployment/wms-api
+目前流程：
+
+```text
+sap-events exchange
+  routing key: material
+  -> sap-material
+
+retry count < 3
+  -> sap-material-retry
+  -> 等待 TTL
+  -> dead-letter 回 sap-events/material
+  -> sap-material
+
+retry count >= 3
+  -> sap-material-dlq
 ```
-
-你可以故意改一段回應文字、重新部署，觀察新舊 Pod 如何替換。
-
-## 5. RabbitMQ Retry / DLQ Flow
-
-練習目標：理解事件流、重試與死信。
 
 送出事件：
 
@@ -114,11 +119,29 @@ Invoke-RestMethod http://127.0.0.1:<ingress-port>/api/dashboard/status
 Invoke-RestMethod http://127.0.0.1:<ingress-port>/api/dashboard/dlq
 ```
 
+看 RabbitMQ queues：
+
+```powershell
+kubectl exec deploy/rabbitmq -- rabbitmqctl list_queues name messages
+```
+
 看 Consumer logs：
 
 ```powershell
 kubectl logs deployment/sap-consumer --tail=120
 ```
+
+## 5. Rolling Update 與 Rollback
+
+練習目標：理解 image tag、rollout、rollback。
+
+```powershell
+kubectl rollout status deployment/wms-api
+kubectl rollout history deployment/wms-api
+kubectl rollout undo deployment/wms-api
+```
+
+可以故意改一段回應文字、重新部署，觀察新舊 Pod 如何替換。
 
 ## 6. Prometheus Metrics
 
@@ -148,7 +171,7 @@ http://127.0.0.1:19090
 up
 ```
 
-查業務指標：
+查服務指標：
 
 ```promql
 k8sdemo_wms_published_total
@@ -210,7 +233,7 @@ kubectl get pods -l app=wms-api
 kubectl top pods
 ```
 
-後續可練：
+後續可以練：
 
 - metrics-server
 - HorizontalPodAutoscaler
@@ -230,4 +253,4 @@ dotnet restore C:\Workspace\Project\K8sDemo\K8sDemo.slnx
 dotnet build C:\Workspace\Project\K8sDemo\K8sDemo.slnx -m:1 -nr:false
 ```
 
-這通常是 build server 或舊輸出檔被鎖住，不是程式碼錯誤。
+這通常是 build server 或輸出檔被鎖住，不是程式碼錯誤。
