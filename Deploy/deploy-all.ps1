@@ -2,7 +2,8 @@ param(
     [switch]$Wms,
     [switch]$SapApi,
     [switch]$Consumer,
-    [switch]$React
+    [switch]$React,
+    [switch]$Monitoring
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,7 +14,7 @@ Write-Host ""
 Write-Host "Deploy Version: $Version"
 Write-Host ""
 
-if (-not ($Wms -or $SapApi -or $Consumer -or $React))
+if (-not ($Wms -or $SapApi -or $Consumer -or $React -or $Monitoring))
 {
     Write-Host "No service selected."
     Write-Host "Usage:"
@@ -21,6 +22,7 @@ if (-not ($Wms -or $SapApi -or $Consumer -or $React))
     Write-Host ".\Deploy\deploy-all.ps1 -SapApi"
     Write-Host ".\Deploy\deploy-all.ps1 -Consumer"
     Write-Host ".\Deploy\deploy-all.ps1 -React"
+    Write-Host ".\Deploy\deploy-all.ps1 -Monitoring"
     Write-Host ".\Deploy\deploy-all.ps1 -Wms -SapApi -Consumer -React"
     exit 0
 }
@@ -272,6 +274,21 @@ if ($React)
 
     kubectl rollout status deployment/react-ui
     Assert-LastCommandSucceeded "Roll out React UI"
+}
+
+# ==========================
+# Monitoring
+# ==========================
+
+if ($Monitoring)
+{
+    Write-Host "Deploy Prometheus"
+
+    kubectl apply -f .\Deploy\prometheus.yaml
+    Assert-LastCommandSucceeded "Apply Prometheus manifest"
+
+    kubectl rollout status deployment/prometheus
+    Assert-LastCommandSucceeded "Roll out Prometheus"
 }
 
 Write-Host ""

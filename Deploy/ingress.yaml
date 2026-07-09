@@ -34,6 +34,14 @@ spec:
             port:
               number: 8080
 
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: wms-api
+            port:
+              number: 8080
+
       - path: /
         pathType: Prefix
         backend:

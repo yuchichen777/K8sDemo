@@ -9,10 +9,14 @@ namespace K8sDemo.WmsApi.Services;
 public class RabbitMqPublisher
 {
     private readonly RabbitMqOptions _options;
+    private readonly WmsMetricsService _metrics;
 
-    public RabbitMqPublisher(IOptions<RabbitMqOptions> options)
+    public RabbitMqPublisher(
+        IOptions<RabbitMqOptions> options,
+        WmsMetricsService metrics)
     {
         _options = options.Value;
+        _metrics = metrics;
     }
 
     public async Task PublishAsync(string routingKey, object message)
@@ -45,5 +49,7 @@ public class RabbitMqPublisher
         Console.WriteLine(
             $"[RabbitMQ] Published {routingKey}"
         );
+
+        _metrics.RecordPublished();
     }
 }

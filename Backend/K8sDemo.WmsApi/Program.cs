@@ -33,6 +33,7 @@ builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<RabbitMqService>();
+builder.Services.AddSingleton<WmsMetricsService>();
 builder.Services.AddSingleton<RabbitMqPublisher>();
 
 var app = builder.Build();
@@ -59,5 +60,13 @@ app.MapHealthChecks(
         Predicate = check => check.Tags.Contains("ready")
     });
 app.MapGet("/healthz", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/metrics", (WmsMetricsService metrics) =>
+    Results.Text(
+        $"""
+        # HELP k8sdemo_wms_published_total Total messages published by WMS API.
+        # TYPE k8sdemo_wms_published_total counter
+        k8sdemo_wms_published_total {metrics.PublishedTotal}
+        """,
+        "text/plain; version=0.0.4"));
 
 app.Run();
